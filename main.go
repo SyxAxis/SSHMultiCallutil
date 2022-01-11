@@ -104,6 +104,35 @@ func ReadJSONConfigFile(cfgFilename string, sshExecutionConfig *SSHScriptConfig)
 
 }
 
+func ExecuteCommand(remoteCommand string, conn *ssh.Client) error {
+
+	sess, err := conn.NewSession()
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	sessStdOut, err := sess.StdoutPipe()
+	if err != nil {
+		panic(err)
+	}
+	go io.Copy(os.Stdout, sessStdOut)
+
+	sessStderr, err := sess.StderrPipe()
+	if err != nil {
+		panic(err)
+	}
+	go io.Copy(os.Stderr, sessStderr)
+
+	err = sess.Run(remoteCommand)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func RunCommands(sshExecutionConfig *SSHScriptConfig, conn *ssh.Client) {
 	// func RunCommands(sshExecutionConfig *SSHScriptConfig) {
 
@@ -111,25 +140,7 @@ func RunCommands(sshExecutionConfig *SSHScriptConfig, conn *ssh.Client) {
 	for _, tmpCmd := range sshExecutionConfig.SSHScrCfgScriptContent {
 		log.Printf("============== COMMAND - [%v] ==================\n", tmpCmd)
 
-		sess, err := conn.NewSession()
-		if err != nil {
-			panic(err)
-		}
-		defer sess.Close()
-
-		sessStdOut, err := sess.StdoutPipe()
-		if err != nil {
-			panic(err)
-		}
-		go io.Copy(os.Stdout, sessStdOut)
-
-		sessStderr, err := sess.StderrPipe()
-		if err != nil {
-			panic(err)
-		}
-		go io.Copy(os.Stderr, sessStderr)
-
-		err = sess.Run(tmpCmd) // eg., /usr/bin/whoami
+		err := ExecuteCommand(tmpCmd, conn) // eg., /usr/bin/whoami
 		if err != nil {
 			log.Println(err)
 		}
