@@ -5,4 +5,4 @@ More practice playing with Go. This is very simple util that reads a JSON config
 
 The idea was to have a util that can slap down a script onto a Unix box, run it and remove it afterwards, then all the temporary unix scripts can be stored in config files in repos like Git, maintained off host and easier to maintain than constantly logging into the remote host to edit scripts. I'll do that in the next stage when I get some time. 
 
-Right now this is just a piece of educutional code for example purposes only. It's perfectly safe SSL code so with the proper tweaking could be make production ready.
+Right now this is just a piece of educational code for example purposes only. It's perfectly safe SSL code so with the proper tweaking could be make production ready.
