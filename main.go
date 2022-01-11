@@ -24,21 +24,30 @@ var sshExecutionConfig SSHScriptConfig
 
 func main() {
 
-	sshCmdCfgFile := flag.String("scriptfile", "configTest02.json", "blah blah")
+	sshCmdCfgFile := flag.String("scriptfile", "configTest01.json", "blah blah")
 	flag.Parse()
 
-	ReadJSONConfigFile(*sshCmdCfgFile, &sshExecutionConfig)
+	InitProcess(*sshCmdCfgFile)
+
+}
+
+func InitProcess(sshCmdCfgFile string) {
+
+	ReadJSONConfigFile(sshCmdCfgFile, &sshExecutionConfig)
 
 	log.Printf("%q\n", sshExecutionConfig)
 
-	sshConn := OpenSSHConnection(&sshExecutionConfig)
+	sshConn, err := OpenSSHConnection(&sshExecutionConfig)
+	if err != nil {
+		log.Fatalln("Connection failed.")
+	}
+
 	defer func() {
 		sshConn.Close()
 		log.Println("Disconnected.")
 	}()
 
 	RunCommands(&sshExecutionConfig, sshConn)
-
 }
 
 func CheckError(err error, msg string) {
@@ -48,19 +57,33 @@ func CheckError(err error, msg string) {
 	}
 }
 
-func OpenSSHConnection(sshExecutionConfig *SSHScriptConfig) *ssh.Client {
-	pemBytes, _ := ioutil.ReadFile(sshExecutionConfig.SSHScrCfgPrivateKeyFile)
-	signer, _ := ssh.ParsePrivateKey(pemBytes)
+func OpenSSHConnection(sshExecutionConfig *SSHScriptConfig) (*ssh.Client, error) {
+	pemBytes, err := ioutil.ReadFile(sshExecutionConfig.SSHScrCfgPrivateKeyFile)
+	if err != nil {
+		log.Println("Failed to read PPK file!")
+		return nil, err
+	}
+	signer, err := ssh.ParsePrivateKey(pemBytes)
+	if err != nil {
+		log.Println("Failed to parse PPK data!")
+		return nil, err
+	}
+
 	config := &ssh.ClientConfig{
 		User: sshExecutionConfig.SSHScrCfgUserID,
 		// Auth: []ssh.AuthMethod{ ssh.Password("password"),
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-	conn, _ := ssh.Dial("tcp", sshExecutionConfig.SSHScrCfgHost, config)
+
+	sshConn, err := ssh.Dial("tcp", sshExecutionConfig.SSHScrCfgHost, config)
+	if err != nil {
+		log.Println("Failed to connect!")
+		return nil, err
+	}
 	log.Println("Connected...")
 
-	return conn
+	return sshConn, nil
 
 }
 
@@ -82,9 +105,10 @@ func ReadJSONConfigFile(cfgFilename string, sshExecutionConfig *SSHScriptConfig)
 }
 
 func RunCommands(sshExecutionConfig *SSHScriptConfig, conn *ssh.Client) {
+	// func RunCommands(sshExecutionConfig *SSHScriptConfig) {
 
+	log.Printf("============== OUTPUT BEGIN - [%v] ==================\n", sshExecutionConfig.SSHScrCfgName)
 	for _, tmpCmd := range sshExecutionConfig.SSHScrCfgScriptContent {
-		log.Printf("============== OUTPUT BEGIN - [%v] ==================\n", sshExecutionConfig.SSHScrCfgName)
 		log.Printf("============== COMMAND - [%v] ==================\n", tmpCmd)
 
 		sess, err := conn.NewSession()
@@ -92,11 +116,13 @@ func RunCommands(sshExecutionConfig *SSHScriptConfig, conn *ssh.Client) {
 			panic(err)
 		}
 		defer sess.Close()
+
 		sessStdOut, err := sess.StdoutPipe()
 		if err != nil {
 			panic(err)
 		}
 		go io.Copy(os.Stdout, sessStdOut)
+
 		sessStderr, err := sess.StderrPipe()
 		if err != nil {
 			panic(err)
@@ -107,6 +133,7 @@ func RunCommands(sshExecutionConfig *SSHScriptConfig, conn *ssh.Client) {
 		if err != nil {
 			log.Println(err)
 		}
-		log.Printf("============== OUTPUT END   - [%v] ==================\n", sshExecutionConfig.SSHScrCfgName)
+
 	}
+	log.Printf("============== OUTPUT END   - [%v] ==================\n", sshExecutionConfig.SSHScrCfgName)
 }

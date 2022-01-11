@@ -1,6 +1,10 @@
 {
     "scriptName":"configTest01",
-    "hostname":"192.168.0.181:22",
-    "userid":"gxj",
-    "privatekeyfile":"myprivkey.ppk"
+    "hostname":"192.168.0.100:22",
+    "userid":"user",
+    "privatekeyfile":"myprivkey.ppk",
+    "sshscriptcontent": [
+        "ls -ltr /tmp/*.log",
+        "ls -ltr /tmp/My*"
+    ]
 }
